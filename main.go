@@ -22,7 +22,7 @@ func main() {
 
 func monitoring(intervalSec int, threshold float64, consecutiveThreshold int) {
 	consecutiveCount := 0 // Count the number of times the load is below the threshold in a row
-	interval := time.Duration(intervalSec)
+	interval := time.Second * time.Duration(intervalSec)
 
 	for {
 		startTime := time.Now()
