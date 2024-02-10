@@ -5,12 +5,12 @@ Smart Idle Shutdown is a console application designed to automatically shut down
 ## Usage
 
 ```bash
-./smart_idle_shutdown [flags]
+./smart-idle-shutdown [flags]
 ```
 
 ## Available Flags
 
-- `-interval`: Check interval in seconds (default: 1 second)
+- `-interval`: Check interval in seconds (default: 5 seconds)
 - `-threshold`: Load Threshold in Percent (default: 30.0)
 - `-consecutive`: Number of consecutive times the load should be below the threshold (default: 3)
 

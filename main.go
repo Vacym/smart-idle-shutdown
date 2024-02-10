@@ -5,22 +5,93 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 	"github.com/shirou/gopsutil/cpu"
 )
 
 func main() {
-	intervalPtr := flag.Int("interval", 1, "Check interval in seconds")
+	intervalPtr := flag.Int("interval", 5, "Check interval in seconds")
 	thresholdPtr := flag.Float64("threshold", 30.0, "Load Threshold in Percent")
-	consecutiveThresholdPtr := flag.Int("consecutive", 1, "Number of consecutive times the load should be below the threshold")
+	consecutiveThresholdPtr := flag.Int("consecutive", 3, "Number of consecutive times the load should be below the threshold")
 
 	flag.Parse()
 
-	monitoring(*intervalPtr, *thresholdPtr, *consecutiveThresholdPtr)
+	a := app.New()
+	w := a.NewWindow("Smart Idle Shutdown")
+
+	// Creating interface elements
+
+	deviceSelector := widget.NewSelect([]string{"CPU"}, func(s string) {
+		// Processing a change in the selected device
+	})
+	deviceSelector.SetSelected("CPU")
+
+	intervalEntry := widget.NewEntry()
+	intervalEntry.SetText(fmt.Sprintf("%d", *intervalPtr))
+	intervalEntry.Validator = ValidateIntervalEntry
+
+	thresholdEntry := widget.NewEntry()
+	thresholdEntry.SetText(fmt.Sprintf("%.2f", *thresholdPtr))
+	thresholdEntry.Validator = ValidateThresholdEntry
+
+	consecutiveEntry := widget.NewEntry()
+	consecutiveEntry.SetText(fmt.Sprintf("%d", *consecutiveThresholdPtr))
+	consecutiveEntry.Validator = ValidateConsecutiveEntry
+
+	startStopButton := widget.NewButton("Start", func() {
+		// "Start/Cancel" button processing
+		interval, err := strconv.Atoi(intervalEntry.Text)
+		if err != nil {
+			fmt.Println("interval is incorrect")
+			return
+		}
+
+		threshold, err := strconv.ParseFloat(thresholdEntry.Text, 64)
+		if err != nil {
+			fmt.Println("interval is incorrect")
+			return
+		}
+
+		consecutiveThreshold, err := strconv.Atoi(consecutiveEntry.Text)
+		if err != nil {
+			fmt.Println("interval is incorrect")
+			return
+		}
+
+		monitoring(interval, threshold, consecutiveThreshold, deviceSelector.Selected)
+
+	})
+
+	loadLabel := widget.NewLabel("")
+
+	// Placement of interface elements
+
+	mainContainer := container.NewVBox(
+		container.NewGridWithColumns(2,
+			deviceSelector,
+			intervalEntry,
+			thresholdEntry,
+			consecutiveEntry,
+		),
+		startStopButton,
+		loadLabel,
+	)
+	w.SetContent(mainContainer)
+
+	// Launching the application
+
+	w.ShowAndRun()
 }
 
-func monitoring(intervalSec int, threshold float64, consecutiveThreshold int) {
+func monitoring(intervalSec int, threshold float64, consecutiveThreshold int, deviceSelector string) {
+	fmt.Printf("Interval: %d seconds, Threshold: %.2f, Consecutive Threshold: %d, Device Selector: %s\n",
+		intervalSec, threshold, consecutiveThreshold, deviceSelector)
+
 	consecutiveCount := 0 // Count the number of times the load is below the threshold in a row
 	interval := time.Second * time.Duration(intervalSec)
 
