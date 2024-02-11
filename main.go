@@ -43,44 +43,69 @@ func main() {
 	consecutiveEntry.SetText(fmt.Sprintf("%d", *consecutiveThresholdPtr))
 	consecutiveEntry.Validator = ValidateConsecutiveEntry
 
-	startStopButton := widget.NewButton("Start", func() {
+	var startAction func()
+	var stopAction func()
+
+	// Placement of interface elements
+
+	form := &widget.Form{
+		Items: []*widget.FormItem{
+			{Text: "Device", Widget: deviceSelector, HintText: "Which device should be checked"},
+			{Text: "Interval", Widget: intervalEntry, HintText: "Check interval in seconds"},
+			{Text: "Threshold", Widget: thresholdEntry, HintText: "Load threshold in percents"},
+			{Text: "Consecutive Threshold", Widget: consecutiveEntry, HintText: "Number of consecutive times the load should be below the threshold"},
+		},
+		SubmitText: "Start monitoring",
+		CancelText: "Close the app to stop monitoring",
+	}
+
+	form.OnSubmit = func() {
+		fmt.Println("Struct:")
+		form.OnSubmit = nil
+		form.OnCancel = func() {
+			fmt.Println("Struct:!!!")
+		}
+		form.Refresh()
+	}
+
+	startAction = func() {
 		// "Start/Cancel" button processing
 		interval, err := strconv.Atoi(intervalEntry.Text)
-		if err != nil {
-			fmt.Println("interval is incorrect")
+		if err != nil || interval <= 0 {
+			fmt.Println("Interval is incorrect")
 			return
 		}
 
 		threshold, err := strconv.ParseFloat(thresholdEntry.Text, 64)
-		if err != nil {
-			fmt.Println("interval is incorrect")
+		if err != nil || threshold < 0 || threshold > 100 {
+			fmt.Println("Threshold is incorrect")
 			return
 		}
 
 		consecutiveThreshold, err := strconv.Atoi(consecutiveEntry.Text)
-		if err != nil {
-			fmt.Println("interval is incorrect")
+		if err != nil || consecutiveThreshold <= 0 {
+			fmt.Println("Consecutive threshold is incorrect")
 			return
 		}
 
+		form.OnSubmit = nil
+		form.OnCancel = stopAction
+		form.Refresh()
+
 		monitoring(interval, threshold, consecutiveThreshold, deviceSelector.Selected)
+	}
 
-	})
+	stopAction = func() {
+		fmt.Println("stop signal")
+	}
 
-	loadLabel := widget.NewLabel("")
-
-	// Placement of interface elements
+	form.OnSubmit = startAction
+	form.Refresh()
 
 	mainContainer := container.NewVBox(
-		container.NewGridWithColumns(2,
-			deviceSelector,
-			intervalEntry,
-			thresholdEntry,
-			consecutiveEntry,
-		),
-		startStopButton,
-		loadLabel,
+		form,
 	)
+
 	w.SetContent(mainContainer)
 
 	// Launching the application
