@@ -3,15 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"os/exec"
 	"strconv"
-	"time"
 
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/shirou/gopsutil/cpu"
+	"github.com/Vacym/smart-idle-shutdown/monitoring"
 )
 
 func main() {
@@ -56,7 +53,7 @@ func main() {
 			{Text: "Consecutive Threshold", Widget: consecutiveEntry, HintText: "Number of consecutive times the load should be below the threshold"},
 		},
 		SubmitText: "Start monitoring",
-		CancelText: "Close the app to stop monitoring",
+		CancelText: "Stop monitoring",
 	}
 
 	form.OnSubmit = func() {
@@ -88,15 +85,19 @@ func main() {
 			return
 		}
 
+		newMonitor := startNewMonitoring(interval, threshold, consecutiveThreshold, deviceSelector.Selected)
+
+		stopAction = func() {
+			stopMonitoring(newMonitor)
+
+			form.OnSubmit = startAction
+			form.OnCancel = nil
+			form.Refresh()
+		}
 		form.OnSubmit = nil
 		form.OnCancel = stopAction
 		form.Refresh()
 
-		monitoring(interval, threshold, consecutiveThreshold, deviceSelector.Selected)
-	}
-
-	stopAction = func() {
-		fmt.Println("stop signal")
 	}
 
 	form.OnSubmit = startAction
@@ -113,56 +114,16 @@ func main() {
 	w.ShowAndRun()
 }
 
-func monitoring(intervalSec int, threshold float64, consecutiveThreshold int, deviceSelector string) {
+func startNewMonitoring(intervalSec int, threshold float64, consecutiveThreshold int, deviceSelector string) monitoring.Monitor {
 	fmt.Printf("Interval: %d seconds, Threshold: %.2f, Consecutive Threshold: %d, Device Selector: %s\n",
 		intervalSec, threshold, consecutiveThreshold, deviceSelector)
 
-	consecutiveCount := 0 // Count the number of times the load is below the threshold in a row
-	interval := time.Second * time.Duration(intervalSec)
+	newMonitor := monitoring.NewMonitor(intervalSec, threshold, consecutiveThreshold, deviceSelector)
+	newMonitor.Start()
 
-	for {
-		startTime := time.Now()
-
-		load, err := getCPULoad(1)
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-
-		fmt.Printf("Load: %.2f%%\n", load)
-
-		if load < threshold {
-			consecutiveCount++
-		} else {
-			consecutiveCount = 0
-		}
-
-		if consecutiveCount >= consecutiveThreshold {
-			shutdown()
-			return
-		}
-
-		waitTime := interval - time.Since(startTime)
-
-		if waitTime > 0 {
-			time.Sleep(waitTime)
-		}
-	}
+	return *newMonitor
 }
 
-func getCPULoad(periodSec int) (float64, error) {
-	period := time.Second * time.Duration(periodSec)
-	percentages, err := cpu.Percent(period, false)
-	if err != nil {
-		return 0, err
-	}
-	return percentages[0], nil
-}
-
-func shutdown() {
-	fmt.Println("Initiating shutdown...")
-	time.Sleep(10 * time.Second) // Give the user time to see the message
-	cmd := exec.Command("shutdown", "/s", "/t", "1")
-	cmd.Run()
-	os.Exit(0)
+func stopMonitoring(monitor monitoring.Monitor) {
+	monitor.Stop()
 }
