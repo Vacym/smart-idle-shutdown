@@ -9,20 +9,27 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 )
 
+type Settings struct {
+	Interval             int
+	Threshold            float64
+	ConsecutiveThreshold int
+	Device               string
+}
+
 type Monitor struct {
 	intervalSec          int
 	threshold            float64
 	consecutiveThreshold int
-	deviceSelector       string
+	device               string
 	stop                 chan struct{}
 }
 
-func NewMonitor(intervalSec int, threshold float64, consecutiveThreshold int, deviceSelector string) *Monitor {
+func NewMonitor(settings Settings) *Monitor {
 	return &Monitor{
-		intervalSec:          intervalSec,
-		threshold:            threshold,
-		consecutiveThreshold: consecutiveThreshold,
-		deviceSelector:       deviceSelector,
+		intervalSec:          settings.Interval,
+		threshold:            settings.Threshold,
+		consecutiveThreshold: settings.ConsecutiveThreshold,
+		device:               settings.Device,
 		stop:                 make(chan struct{}),
 	}
 }
@@ -45,7 +52,7 @@ func (m *Monitor) Start() {
 				if err != nil {
 					fmt.Println(err)
 				} else {
-					fmt.Println(load)
+					fmt.Printf("load: %.2f%%\n", load)
 
 					if load < m.threshold {
 						consecutiveCount++
