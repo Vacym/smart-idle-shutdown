@@ -20,7 +20,7 @@ type gui struct {
 	monitor          *monitoring.Monitor
 }
 
-func newGUI(values monitoring.Settings) *gui {
+func newGUI(settings monitoring.Settings) *gui {
 	g := &gui{
 		deviceSelector:   widget.NewSelect([]string{"CPU"}, func(s string) {}),
 		intervalEntry:    widget.NewEntry(),
@@ -28,16 +28,23 @@ func newGUI(values monitoring.Settings) *gui {
 		consecutiveEntry: widget.NewEntry(),
 	}
 
-	g.deviceSelector.SetSelected("CPU")
-	g.intervalEntry.SetText(fmt.Sprintf("%d", values.Interval))
-	g.thresholdEntry.SetText(fmt.Sprintf("%.2f", values.Threshold))
-	g.consecutiveEntry.SetText(fmt.Sprintf("%d", values.ConsecutiveThreshold))
+	g.initializeFormFields(settings)
+	g.setFormValidators()
 
+	return g
+}
+
+func (g *gui) initializeFormFields(settings monitoring.Settings) {
+	g.deviceSelector.SetSelected("CPU")
+	g.intervalEntry.SetText(fmt.Sprintf("%d", settings.Interval))
+	g.thresholdEntry.SetText(fmt.Sprintf("%.2f", settings.Threshold))
+	g.consecutiveEntry.SetText(fmt.Sprintf("%d", settings.ConsecutiveThreshold))
+}
+
+func (g *gui) setFormValidators() {
 	g.intervalEntry.Validator = ValidateIntervalEntry
 	g.thresholdEntry.Validator = ValidateThresholdEntry
 	g.consecutiveEntry.Validator = ValidateConsecutiveEntry
-
-	return g
 }
 
 func (g *gui) setupWindow(w fyne.Window) {
@@ -55,10 +62,7 @@ func (g *gui) setupWindow(w fyne.Window) {
 		OnSubmit:   g.startMonitoring,
 	}
 
-	mainContainer := container.NewVBox(
-		g.form,
-	)
-
+	mainContainer := container.NewVBox(g.form)
 	w.SetContent(mainContainer)
 }
 
@@ -86,17 +90,16 @@ func (g *gui) startMonitoring() {
 		return
 	}
 
-	g.monitor = monitoring.NewMonitor(monitoring.Settings{
+	settings := monitoring.Settings{
 		Interval:             interval,
 		Threshold:            threshold,
 		ConsecutiveThreshold: consecutiveThreshold,
 		Device:               g.deviceSelector.Selected,
-	})
+	}
+	g.monitor = monitoring.NewMonitor(settings)
 	g.monitor.Start()
 
-	g.form.OnSubmit = nil
-	g.form.OnCancel = g.stopMonitoring
-	g.form.Refresh()
+	g.updateFormHandlers(nil, g.stopMonitoring)
 }
 
 func (g *gui) stopMonitoring() {
@@ -107,7 +110,11 @@ func (g *gui) stopMonitoring() {
 	g.monitor.Stop()
 	g.monitor = nil
 
-	g.form.OnSubmit = g.startMonitoring
-	g.form.OnCancel = nil
+	g.updateFormHandlers(g.startMonitoring, nil)
+}
+
+func (g *gui) updateFormHandlers(onSubmit func(), onCancel func()) {
+	g.form.OnSubmit = onSubmit
+	g.form.OnCancel = onCancel
 	g.form.Refresh()
 }
