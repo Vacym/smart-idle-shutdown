@@ -22,7 +22,7 @@ type gui struct {
 
 func newGUI(settings monitoring.Settings) *gui {
 	g := &gui{
-		deviceSelector:   widget.NewSelect([]string{"CPU"}, func(s string) {}),
+		deviceSelector:   widget.NewSelect([]string{string(monitoring.CPU), string(monitoring.MEM)}, func(s string) {}),
 		intervalEntry:    widget.NewEntry(),
 		thresholdEntry:   widget.NewEntry(),
 		consecutiveEntry: widget.NewEntry(),
@@ -94,7 +94,7 @@ func (g *gui) startMonitoring() {
 		Interval:             interval,
 		Threshold:            threshold,
 		ConsecutiveThreshold: consecutiveThreshold,
-		Device:               g.deviceSelector.Selected,
+		Device:               monitoring.Resource(g.deviceSelector.Selected),
 	}
 	g.monitor = monitoring.NewMonitor(settings)
 	g.monitor.Start()
